@@ -5,6 +5,8 @@ import requests
 import tornado.ioloop
 import tornado.web
 
+from tornado.escape import json_encode
+
 
 class BaseHandler(tornado.web.RequestHandler):
     def initialize(self, settings, *args, **kwargs):
@@ -25,8 +27,10 @@ class GetQaPrHandler(BaseHandler):
         for pull in pulls:
             r = requests.get(self._settings['GITHUB_PULLS_URL'] % pull,
                              headers=auth_header)
-            branches.append(r.json()['head']['ref'])
-        self.write(','.join(branches))
+            branches.append({"name": r.json()['head']['ref'],
+                             "value": r.json()['head']['ref']})
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode(branches))
 
 
 def make_app(settings):
