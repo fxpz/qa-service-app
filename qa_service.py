@@ -14,18 +14,18 @@ class BaseHandler(tornado.web.RequestHandler):
         self._settings = settings
 
 
-class GetQaPrHandler(BaseHandler):
+class GetWebQaPrHandler(BaseHandler):
     def get(self):
         auth_header = {'Authorization':
                        'token %s' % self._settings['GITHUB_TOKEN']}
-        r = requests.get(self._settings['GITHUB_SEARCH_URL'],
-                         params=self._settings['GITHUB_SEARCH_PARAMS'],
+        r = requests.get(self._settings['GITHUB_PR_SEARCH_URL'],
+                         params=self._settings['GITHUB_PR_WEB_SEARCH_PARAMS'],
                          headers=auth_header)
         jres = r.json()
         pulls = [x['number'] for x in jres['items']]
         branches = []
         for pull in pulls:
-            r = requests.get(self._settings['GITHUB_PULLS_URL'] % pull,
+            r = requests.get(self._settings['GITHUB_PR_WEB_URL'] % pull,
                              headers=auth_header)
             branches.append({"name": r.json()['head']['ref'],
                              "value": r.json()['head']['ref']})
@@ -33,9 +33,21 @@ class GetQaPrHandler(BaseHandler):
         self.write(json_encode(branches))
 
 
+class GetApiBranchesHandler(BaseHandler):
+    def get(self):
+        auth_header = {'Authorization':
+                       'token %s' % self._settings['GITHUB_TOKEN']}
+        r = requests.get(self._settings['GITHUB_BR_API_URL'],
+                         headers=auth_header)
+        branches = [{'name': x['name'], 'value': x['name']} for x in r.json()]
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode(branches))
+
+
 def make_app(settings):
     return tornado.web.Application([
-        (r"/get_qa_pr", GetQaPrHandler, dict(settings=settings)),
+        (r"/web/get_qa_pr", GetWebQaPrHandler, dict(settings=settings)),
+        (r"/api/get_branches", GetApiBranchesHandler, dict(settings=settings))
     ])
 
 
