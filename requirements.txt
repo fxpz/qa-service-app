@@ -1,3 +1,4 @@
 tornado==4.4.1
 PyYAML==3.12
 requests==2.11.1
+pyrax==1.9.8
