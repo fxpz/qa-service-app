@@ -46,7 +46,9 @@ class GetApiBranchesHandler(BaseHandler):
 
 class GetQaServersHandler(BaseHandler):
     def get(self):
+        import re
         import pyrax
+
         pyrax.set_setting('identity_type', 'rackspace')
         pyrax.set_credential_file(
             self._settings['RAX_CREDS_FILE'],
@@ -54,11 +56,12 @@ class GetQaServersHandler(BaseHandler):
         cs = pyrax.cloudservers
         server_list = cs.servers.list()
         servers = []
+        r = re.compile(r'qa-(\d+)$')
         for i in server_list:
-            if i.name.startswith('qa-'):
+            if r.match(i.name):
                 servers.append({
                     'name': i.name,
-                    'value': i.name[3:]})
+                    'value': r.match(i.name).group(1)})
         self.set_header('Content-Type', 'application/json')
         self.write(json_encode(servers))
 
