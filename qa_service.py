@@ -44,10 +44,30 @@ class GetApiBranchesHandler(BaseHandler):
         self.write(json_encode(branches))
 
 
+class GetQaServersHandler(BaseHandler):
+    def get(self):
+        import pyrax
+        pyrax.set_setting('identity_type', 'rackspace')
+        pyrax.set_credential_file(
+            self._settings['RAX_CREDS_FILE'],
+            region=self._settings['RAX_REGION'])
+        cs = pyrax.cloudservers
+        server_list = cs.servers.list()
+        servers = []
+        for i in server_list:
+            if i.name.startswith('qa-'):
+                servers.append({
+                    'name': i.name,
+                    'value': i.name[3:]})
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode(servers))
+
+
 def make_app(settings):
     return tornado.web.Application([
         (r"/web/get_qa_pr", GetWebQaPrHandler, dict(settings=settings)),
-        (r"/api/get_branches", GetApiBranchesHandler, dict(settings=settings))
+        (r"/api/get_branches", GetApiBranchesHandler, dict(settings=settings)),
+        (r"/get_qa_servers", GetQaServersHandler, dict(settings=settings))
     ])
 
 
