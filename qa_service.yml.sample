@@ -11,3 +11,9 @@ GITHUB_PR_WEB_URL: 'https://api.github.com/repos/Viralize/viralize-web/pulls/%s'
 
 # url to retrieve all api branches
 GITHUB_BR_API_URL: 'https://api.github.com/repos/Viralize/viralize/branches'
+
+DB_HOST: #DB HOSTNAME HERE#
+DB_PORT: #DB PORT HERE#
+DB_USER: #DB USER HERE#
+DB_PASS: #DB PASS HERE#
+DB_NAME: #DB NAME HERE#

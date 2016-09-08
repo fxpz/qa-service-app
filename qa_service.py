@@ -1,7 +1,10 @@
+import sys
 import yaml
 import argparse
 import requests
 
+import psycopg2
+import psycopg2.extras
 import tornado.ioloop
 import tornado.web
 
@@ -67,11 +70,46 @@ class GetQaServersHandler(BaseHandler):
 
 
 def make_app(settings):
+    init_db(settings)
     return tornado.web.Application([
         (r"/web/get_qa_pr", GetWebQaPrHandler, dict(settings=settings)),
         (r"/api/get_branches", GetApiBranchesHandler, dict(settings=settings)),
         (r"/get_qa_servers", GetQaServersHandler, dict(settings=settings))
     ])
+
+
+def init_db(settings):
+    try:
+        conn = psycopg2.connect(
+            dbname=settings['DB_NAME'],
+            user=settings['DB_USER'],
+            host=settings['DB_HOST'],
+            password=settings['DB_PASS'],
+            port=settings['DB_PORT'])
+    except:
+        print >> sys.stderr, 'Could not connect to pgsql'
+        sys.exit(1)
+
+    cur = conn.cursor()
+    cur.execute("select table_name FROM information_schema.tables WHERE \
+        table_catalog=%s and \
+        table_schema='public';", (settings['DB_NAME'],))
+    cur.close()
+    if cur.rowcount > 0:
+        return(True)
+
+    try:
+        cur.execute("CREATE TABLE qa_status (\
+            id serial PRIMARY KEY, \
+            qa_id integer, \
+            status varchar(50), \
+            last_update timestamp, \
+            branch_name varchar(100));")
+        conn.commit()
+        cur.close()
+    except:
+        print >> sys.stderr, 'cannot initialize db'
+        sys.exit(1)
 
 
 def main():
