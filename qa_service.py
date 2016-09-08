@@ -94,7 +94,6 @@ def init_db(settings):
     cur.execute("select table_name FROM information_schema.tables WHERE \
         table_catalog=%s and \
         table_schema='public';", (settings['DB_NAME'],))
-    cur.close()
     if cur.rowcount > 0:
         return(True)
 
