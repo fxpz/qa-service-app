@@ -11,6 +11,43 @@ import tornado.web
 from tornado.escape import json_encode
 
 
+def pg_connect(settings):
+    try:
+        conn = psycopg2.connect(
+            dbname=settings['DB_NAME'],
+            user=settings['DB_USER'],
+            host=settings['DB_HOST'],
+            password=settings['DB_PASS'],
+            port=settings['DB_PORT'])
+        return (conn)
+    except:
+        print >> sys.stderr, 'Could not connect to pgsql'
+        sys.exit(1)
+
+
+def init_db(settings):
+    conn = pg_connect(settings)
+    cur = conn.cursor()
+    cur.execute("select table_name FROM information_schema.tables WHERE \
+        table_catalog=%s and \
+        table_schema='public';", (settings['DB_NAME'],))
+    if cur.rowcount > 0:
+        return(True)
+
+    try:
+        cur.execute("CREATE TABLE qa_status (\
+            id serial PRIMARY KEY, \
+            qa_id integer, \
+            status varchar(50), \
+            last_update timestamp, \
+            branch_name varchar(100));")
+        conn.commit()
+        cur.close()
+    except:
+        print >> sys.stderr, 'cannot initialize db'
+        sys.exit(1)
+
+
 class BaseHandler(tornado.web.RequestHandler):
     def initialize(self, settings, *args, **kwargs):
         super(BaseHandler, self).initialize(*args, **kwargs)
@@ -69,46 +106,33 @@ class GetQaServersHandler(BaseHandler):
         self.write(json_encode(servers))
 
 
+class GetQaServerStatusHandler(BaseHandler):
+    def get(self):
+        conn = pg_connect(self._settings)
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * from qa_status ORDER BY last_update DESC")
+        res = [['id', 'Server Name', 'Web Branch', 'Last up', 'Status']]
+        if cur.rowcount > 0:
+            for row in cur.fetchall():
+                res.append([row['qa_id'],
+                            'qa-%s' % row['qa_id'],
+                            row['branch_name'],
+                            row['last_update'].strftime('%Y-%m-%d %H:%M:%S'),
+                            row['status']])
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode(res))
+
+
 def make_app(settings):
     init_db(settings)
     return tornado.web.Application([
         (r"/web/get_qa_pr", GetWebQaPrHandler, dict(settings=settings)),
         (r"/api/get_branches", GetApiBranchesHandler, dict(settings=settings)),
-        (r"/get_qa_servers", GetQaServersHandler, dict(settings=settings))
+        (r"/get_qa_servers", GetQaServersHandler, dict(settings=settings)),
+        (r"/get_qa_server_status",
+         GetQaServerStatusHandler,
+         dict(settings=settings))
     ])
-
-
-def init_db(settings):
-    try:
-        conn = psycopg2.connect(
-            dbname=settings['DB_NAME'],
-            user=settings['DB_USER'],
-            host=settings['DB_HOST'],
-            password=settings['DB_PASS'],
-            port=settings['DB_PORT'])
-    except:
-        print >> sys.stderr, 'Could not connect to pgsql'
-        sys.exit(1)
-
-    cur = conn.cursor()
-    cur.execute("select table_name FROM information_schema.tables WHERE \
-        table_catalog=%s and \
-        table_schema='public';", (settings['DB_NAME'],))
-    if cur.rowcount > 0:
-        return(True)
-
-    try:
-        cur.execute("CREATE TABLE qa_status (\
-            id serial PRIMARY KEY, \
-            qa_id integer, \
-            status varchar(50), \
-            last_update timestamp, \
-            branch_name varchar(100));")
-        conn.commit()
-        cur.close()
-    except:
-        print >> sys.stderr, 'cannot initialize db'
-        sys.exit(1)
 
 
 def main():
