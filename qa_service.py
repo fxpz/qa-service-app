@@ -123,6 +123,21 @@ class GetQaServerStatusHandler(BaseHandler):
         self.write(json_encode(res))
 
 
+class CleanQaServerStatusHandler(BaseHandler):
+    def get(self):
+        conn = pg_connect(self._settings)
+        cur = conn.cursor()
+        try:
+            cur.execute("DELETE FROM qa_status WHERE status='Destroyed!' and "
+                        "last_update < NOW() - INTERVAL '%s "
+                        "days';", (self._settings['STATUS_RETENTION_DAYS'],))
+            conn.commit()
+            self.write('ok')
+        except:
+            print >> sys.stderr, 'Error in clean query'
+            self.write('Error executing cleanup query')
+
+
 def make_app(settings):
     init_db(settings)
     return tornado.web.Application([
@@ -131,7 +146,11 @@ def make_app(settings):
         (r"/get_qa_servers", GetQaServersHandler, dict(settings=settings)),
         (r"/get_qa_server_status",
          GetQaServerStatusHandler,
+         dict(settings=settings)),
+        (r"/clean_qa_server_status",
+         CleanQaServerStatusHandler,
          dict(settings=settings))
+
     ])
 
 

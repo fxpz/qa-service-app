@@ -17,3 +17,6 @@ DB_PORT: #DB PORT HERE#
 DB_USER: #DB USER HERE#
 DB_PASS: #DB PASS HERE#
 DB_NAME: #DB NAME HERE#
+
+# retantion days for server in destroyed status
+STATUS_RETENTION_DAYS: 3
