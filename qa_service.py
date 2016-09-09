@@ -138,6 +138,15 @@ class CleanQaServerStatusHandler(BaseHandler):
             self.write('Error executing cleanup query')
 
 
+class GetBranchNameByIdHandler(BaseHandler):
+    def get(self, qa_id):
+        conn = pg_connect(self._settings)
+        cur = conn.cursor()
+        cur.execute('SELECT branch_name FROM qa_status WHERE qa_id=%s', (qa_id,))
+        row = cur.fetchall()[0]
+        self.write(row['branch_name'])
+
+
 def make_app(settings):
     init_db(settings)
     return tornado.web.Application([
@@ -149,8 +158,10 @@ def make_app(settings):
          dict(settings=settings)),
         (r"/clean_qa_server_status",
          CleanQaServerStatusHandler,
+         dict(settings=settings)),
+        (r"/get_branch_name_by_id/([0-9]+)",
+         GetBranchNameByIdHandler,
          dict(settings=settings))
-
     ])
 
 
