@@ -1,4 +1,5 @@
 import sys
+import json
 import yaml
 import argparse
 import requests
@@ -157,6 +158,39 @@ class GetViralizePlaybookBranchHandler(BaseHandler):
         self.write(json_encode(res))
 
 
+class UpdateStatusHandler(BaseHandler):
+    def post(self, qa_id):
+        data = json.loads(self.request.body)
+        status = data['status']
+        branch = data['branch']
+        conn = pg_connect(self._settings)
+        cur = conn.cursor()
+        try:
+            update_query = ("UPDATE qa_status SET status='{status}', "
+                            "last_update=now(), "
+                            "branch_name='{branch}' "
+                            "WHERE qa_id={qa_id}").format(status=status,
+                                                          branch=branch,
+                                                          qa_id=qa_id)
+            insert_query = ("INSERT INTO qa_status (status, last_update, "
+                            "branch_name, qa_id) SELECT '{status}', 'now()', "
+                            "'{branch}', "
+                            "'{qa_id}' WHERE NOT EXISTS "
+                            "(SELECT 1 FROM qa_status "
+                            "WHERE qa_id={qa_id})").format(status=status,
+                                                          branch=branch,
+                                                          qa_id=qa_id)
+            cur.execute(update_query)
+            cur.execute(insert_query)
+            conn.commit()
+            self.set_status(200)
+            self.write('OK')
+        except:
+            print >> sys.stderr, 'Error in update status query'
+            self.set_status(500, reason='Error update status query')
+            self.write('FAIL')
+
+
 def make_app(settings):
     init_db(settings)
     return tornado.web.Application([
@@ -174,6 +208,9 @@ def make_app(settings):
          dict(settings=settings)),
         (r"/get_viralize_playbook_branch",
          GetViralizePlaybookBranchHandler,
+         dict(settings=settings)),
+        (r"/update_status/([0-9]+)",
+         UpdateStatusHandler,
          dict(settings=settings))
     ])
 
