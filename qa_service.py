@@ -142,9 +142,19 @@ class GetBranchNameByIdHandler(BaseHandler):
     def get(self, qa_id):
         conn = pg_connect(self._settings)
         cur = conn.cursor()
-        cur.execute('SELECT branch_name FROM qa_status WHERE qa_id=%s', (qa_id,))
+        cur.execute('SELECT branch_name FROM qa_status WHERE qa_id=%s',
+                    (qa_id,))
         row = cur.fetchall()[0]
         self.write(row['branch_name'])
+
+
+class GetViralizePlaybookBranchHandler(BaseHandler):
+    def get(self):
+        res = []
+        for branch in self._settings['VIRALIZE_PLAYBOOK_BRANCHES']:
+            res.append({'name': branch, 'value': branch})
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode(res))
 
 
 def make_app(settings):
@@ -161,6 +171,9 @@ def make_app(settings):
          dict(settings=settings)),
         (r"/get_branch_name_by_id/([0-9]+)",
          GetBranchNameByIdHandler,
+         dict(settings=settings)),
+        (r"/get_viralize_playbook_branch",
+         GetViralizePlaybookBranchHandler,
          dict(settings=settings))
     ])
 
