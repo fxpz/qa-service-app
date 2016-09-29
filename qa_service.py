@@ -150,11 +150,13 @@ class CleanQaServerStatusHandler(BaseHandler):
 class GetBranchNameByIdHandler(BaseHandler):
     def get(self, qa_id):
         conn = pg_connect(self._settings)
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute('SELECT branch_name FROM qa_status WHERE qa_id=%s',
                     (qa_id,))
         row = cur.fetchall()[0]
-        self.write(row['branch_name'])
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode([{'name': row['branch_name'],
+                                 'value': row['branch_name']}]))
         self.finish()
 
 
