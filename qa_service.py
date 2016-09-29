@@ -203,6 +203,13 @@ class UpdateStatusHandler(BaseHandler):
             self.finish()
 
 
+class GetWebQaIdHandler(BaseHandler):
+    def get(self, qa_id):
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode([{'name': qa_id, 'value': qa_id}]))
+        self.finish()
+
+
 def make_app(settings):
     init_db(settings)
     return tornado.web.Application([
@@ -223,6 +230,9 @@ def make_app(settings):
          dict(settings=settings)),
         (r"/update_status/([0-9]+)",
          UpdateStatusHandler,
+         dict(settings=settings)),
+        (r"/web/get_qa_id/VR-([0-9]+)-.*",
+         GetWebQaIdHandler,
          dict(settings=settings))
     ])
 
