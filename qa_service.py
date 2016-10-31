@@ -212,6 +212,15 @@ class GetWebQaIdHandler(BaseHandler):
         self.finish()
 
 
+class GetMailUserHandler(BaseHandler):
+    def get(self, user):
+        for u in self._settings['USERS']:
+            if u['user'] == user:
+                self.write(u['mail'])
+                break
+        self.finish()
+
+
 def make_app(settings):
     init_db(settings)
     return tornado.web.Application([
@@ -235,6 +244,9 @@ def make_app(settings):
          dict(settings=settings)),
         (r"/web/get_qa_id/VR-([0-9]+)-.*",
          GetWebQaIdHandler,
+         dict(settings=settings)),
+        (r"/get_mail_user/(.*)",
+         GetMailUserHandler,
          dict(settings=settings))
     ])
 
