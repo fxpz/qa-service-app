@@ -1,8 +1,8 @@
 import sys
 import json
 import yaml
-import time
 import argparse
+import datetime
 import requests
 
 import psycopg2
@@ -178,7 +178,7 @@ class GetViralizePlaybookBranchHandler(BaseHandler):
 class UpdateStatusHandler(BaseHandler):
     def post(self, qa_id):
         data = json.loads(self.request.body)
-        data['last_update'] = time.time.now()
+        data['last_update'] = datetime.datetime.now()
         conn = pg_connect(self._settings)
         cur = conn.cursor()
         try:
