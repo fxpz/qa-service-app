@@ -1,6 +1,7 @@
 import sys
 import json
 import yaml
+import time
 import argparse
 import requests
 
@@ -42,7 +43,8 @@ def init_db(settings):
             qa_id integer, \
             status varchar(50), \
             last_update timestamp, \
-            branch_name varchar(100));")
+            web_branch_name varchar(100), \
+            api_branch_name varchar(100));")
         conn.commit()
         cur.close()
     except:
@@ -117,12 +119,14 @@ class GetQaServerStatusHandler(BaseHandler):
         conn = pg_connect(self._settings)
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute("SELECT * from qa_status ORDER BY last_update DESC")
-        res = [['id', 'Server Name', 'Web Branch', 'Last up', 'Status']]
+        res = [['id', 'Server Name', 'Web Branch',
+                'Api Branch', 'Last up', 'Status']]
         if cur.rowcount > 0:
             for row in cur.fetchall():
                 res.append([row['qa_id'],
                             'qa-%s' % row['qa_id'],
-                            row['branch_name'],
+                            row['web_branch_name'],
+                            row['api_branch_name'],
                             row['last_update'].strftime('%Y-%m-%d %H:%M:%S'),
                             row['status']])
         self.set_header('Content-Type', 'application/json')
@@ -148,15 +152,16 @@ class CleanQaServerStatusHandler(BaseHandler):
 
 
 class GetBranchNameByIdHandler(BaseHandler):
-    def get(self, qa_id):
+    def get(self, proj, qa_id):
         conn = pg_connect(self._settings)
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute('SELECT branch_name FROM qa_status WHERE qa_id=%s',
-                    (qa_id,))
+        field_name = '%s_branch_name' % proj
+        cur.execute('SELECT {field_name} FROM qa_status \
+                    WHERE qa_id=%s'.format(field_name=field_name), (qa_id,))
         row = cur.fetchall()[0]
         self.set_header('Content-Type', 'application/json')
-        self.write(json_encode([{'name': row['branch_name'],
-                                 'value': row['branch_name']}]))
+        self.write(json_encode([{'name': row[field_name],
+                                 'value': row[field_name]}]))
         self.finish()
 
 
@@ -173,25 +178,23 @@ class GetViralizePlaybookBranchHandler(BaseHandler):
 class UpdateStatusHandler(BaseHandler):
     def post(self, qa_id):
         data = json.loads(self.request.body)
-        status = data['status']
-        branch = data['branch']
+        data['last_update'] = time.time.now()
         conn = pg_connect(self._settings)
         cur = conn.cursor()
         try:
-            update_query = ("UPDATE qa_status SET status='{status}', "
-                            "last_update=now(), "
-                            "branch_name='{branch}' "
-                            "WHERE qa_id={qa_id}").format(status=status,
-                                                          branch=branch,
-                                                          qa_id=qa_id)
-            insert_query = ("INSERT INTO qa_status (status, last_update, "
-                            "branch_name, qa_id) SELECT '{status}', 'now()', "
-                            "'{branch}', "
-                            "'{qa_id}' WHERE NOT EXISTS "
-                            "(SELECT 1 FROM qa_status "
-                            "WHERE qa_id={qa_id})").format(status=status,
-                                                           branch=branch,
-                                                           qa_id=qa_id)
+            update_query = ("UPDATE qa_status SET {fields} WHERE \
+                            qa_id={qa_id}".format(
+                qa_id=qa_id,
+                fields=','.join(["%s='%s'" % (k, v) for
+                                 k, v in data.iteritems()])))
+            data['qa_id'] = qa_id
+            insert_query = ("INSERT INTO qa_status ({fields}) SELECT {values} \
+                            WHERE NOT EXISTS (SELECT 1 from qa_status WHERE \
+                            qa_id={qa_id})").format(
+                qa_id=qa_id,
+                fields=','.join([k for k in data.iterkeys()]),
+                values=','.join(["'%s'" % v for v in data.itervalues()]))
+
             cur.execute(update_query)
             cur.execute(insert_query)
             conn.commit()
@@ -233,7 +236,7 @@ def make_app(settings):
         (r"/clean_qa_server_status",
          CleanQaServerStatusHandler,
          dict(settings=settings)),
-        (r"/get_branch_name_by_id/([0-9]+)",
+        (r"/get_branch_name_by_id/(web|api)/([0-9]+)",
          GetBranchNameByIdHandler,
          dict(settings=settings)),
         (r"/get_viralize_playbook_branch",
