@@ -45,7 +45,8 @@ def init_db(settings):
             status varchar(50), \
             last_update timestamp, \
             web_branch_name varchar(100), \
-            api_branch_name varchar(100));")
+            api_branch_name varchar(100), \
+            pagetests_branch_name varchar(100));")
         conn.commit()
         cur.close()
     except:
