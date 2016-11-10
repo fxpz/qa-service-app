@@ -5,6 +5,7 @@ import argparse
 import datetime
 import requests
 
+import gitlab
 import psycopg2
 import psycopg2.extras
 import tornado.ioloop
@@ -86,6 +87,18 @@ class GetApiBranchesHandler(BaseHandler):
         r = requests.get(self._settings['GITHUB_BR_API_URL'],
                          headers=auth_header)
         branches = [{'name': x['name'], 'value': x['name']} for x in r.json()]
+        self.set_header('Content-Type', 'application/json')
+        self.write(json_encode(branches))
+        self.finish()
+
+
+class GetPagetestsBranchesHandler(BaseHandler):
+    def get(self):
+        git = gitlab.Gitlab(self._settings['GITLAB_URL'],
+                            token=self._settings['GITLAB_TOKEN'],
+                            verify_ssl=self._settings['GITLAB_VERIFY_SSL'])
+        r = git.getbranches(self._settings['GITLAB_PAGETESTS_PROJECT_ID'])
+        branches = [{'name': x['name'], 'value': x['name']} for x in r]
         self.set_header('Content-Type', 'application/json')
         self.write(json_encode(branches))
         self.finish()
@@ -229,6 +242,9 @@ def make_app(settings):
     return tornado.web.Application([
         (r"/web/get_qa_pr", GetWebQaPrHandler, dict(settings=settings)),
         (r"/api/get_branches", GetApiBranchesHandler, dict(settings=settings)),
+        (r"/pagetests/get_branches",
+         GetPagetestsBranchesHandler,
+         dict(settings=settings)),
         (r"/get_qa_servers", GetQaServersHandler, dict(settings=settings)),
         (r"/get_qa_server_status",
          GetQaServerStatusHandler,
