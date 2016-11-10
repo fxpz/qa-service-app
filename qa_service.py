@@ -134,13 +134,14 @@ class GetQaServerStatusHandler(BaseHandler):
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         cur.execute("SELECT * from qa_status ORDER BY last_update DESC")
         res = [['id', 'Server Name', 'Web Branch',
-                'Api Branch', 'Last up', 'Status']]
+                'Api Branch', 'Pagetests Branch', 'Last up', 'Status']]
         if cur.rowcount > 0:
             for row in cur.fetchall():
                 res.append([row['qa_id'],
                             'qa-%s' % row['qa_id'],
                             row['web_branch_name'],
                             row['api_branch_name'],
+                            row['pagetests_branch_name'],
                             row['last_update'].strftime('%Y-%m-%d %H:%M:%S'),
                             row['status']])
         self.set_header('Content-Type', 'application/json')
